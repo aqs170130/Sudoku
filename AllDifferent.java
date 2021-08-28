@@ -10,56 +10,55 @@ public class AllDifferent {
 	//the first half [0, x] represents the range of the domain of [x+1, size-1]
 
 	public static void main(String[] args) throws FileNotFoundException{
-        DiGraph graph = new DiGraph(18);
-        //4 5 6 7
-        //0 1 2 3
-        /*
-        Path path1 = Paths.get("input1.txt");
-        Scanner t1scan = new Scanner(path1.toFile());
-        while(t1scan.hasNextLine()) {
-        		String r = t1scan.nextLine();
-        		String[] re = r.split(" ");
-        		System.out.println("graph.addEdge(" + re[0] + ", " + re[1] + ");");
-        }
-        */
-        graph.addEdge(9, 2);
-        graph.addEdge(10, 1);
-        graph.addEdge(10, 3);
-        graph.addEdge(10, 6);
-        graph.addEdge(11, 8);
-        graph.addEdge(12, 0);
-        graph.addEdge(12, 1);
-        graph.addEdge(12, 4);
-        graph.addEdge(13, 1);
-        graph.addEdge(13, 4);
-        graph.addEdge(14, 0);
-        graph.addEdge(14, 4);
-        graph.addEdge(15, 5);
-        graph.addEdge(16, 1);
-        graph.addEdge(16, 6);
-        graph.addEdge(16, 7);
-        graph.addEdge(17, 0);
-        graph.addEdge(17, 1);
-        graph.addEdge(17, 3);
-        graph.addEdge(17, 4);
-
-
-        //graph.addEdge(1, 7);
-
-
-        AllDifferent allpuz = new AllDifferent(graph,8);
         
-        allpuz.findMaxMatching();
-        /*
-        allpuz.prunenumber(14, 3);
-        allpuz.prunenumber(9, 1);
-        allpuz.prunenumber(15, 0);
-        allpuz.prunenumber(15, 2);
-        allpuz.prunenumber(15, 6);
-        allpuz.prunenumber(17, 1);
-        allpuz.prunenumber(17, 3);
-        */
-        System.out.println(allpuz.g.printEdges());
+		DiGraph graph = new DiGraph(13);
+
+        graph.addEdge(7, 0);
+        graph.addEdge(1, 7);
+        graph.addEdge(8, 1);
+        graph.addEdge(2, 8);
+        graph.addEdge(9, 2);
+        graph.addEdge(0, 9);
+        graph.addEdge(10, 1);
+        graph.addEdge(3, 10);
+        graph.addEdge(11, 2);
+        graph.addEdge(11, 3);
+        graph.addEdge(4, 11);
+        graph.addEdge(11, 5);
+        graph.addEdge(12, 6);
+        graph.addEdge(5, 12);
+
+
+
+        AllDifferent allpuz = new AllDifferent(graph,6);
+          
+		DiGraph graph2 = new DiGraph(13);
+
+        graph.addEdge(0, 7);
+        graph.addEdge(1, 7);
+        graph.addEdge(1, 8);
+        graph.addEdge(2, 8);
+        graph.addEdge(9, 2);
+        graph.addEdge(0, 9);
+        graph.addEdge(10, 1);
+        graph.addEdge(3, 10);
+        graph.addEdge(11, 2);
+        graph.addEdge(11, 7);
+        graph.addEdge(11, 4);
+        graph.addEdge(11, 5);
+        graph.addEdge(12, 6);
+        graph.addEdge(5, 12);
+
+
+
+        AllDifferent allpuz2 = new AllDifferent(graph2,6);
+        
+		if(allpuz.isEquivalent(allpuz2)) {
+			System.out.println("True");
+		}
+		else {
+			System.out.println("False");
+		}
         /*
         int[][] results = allpuz.prune();
         
@@ -71,12 +70,29 @@ public class AllDifferent {
         		}
         }
         */
-        allpuz.prunenumber(14, 0);
-        System.out.println(allpuz.g.printEdges());
-        //int sol = allpuz.depthsearchMaxMatching(graph, visitnodes, 0, 0);
-        
-        
-        //System.out.println(sol);
+		/*
+		DiGraph graph = new DiGraph(4);
+		graph.addEdge(3, 0);
+		graph.addEdge(2, 0);
+		graph.addEdge(3, 1);
+		graph.addEdge(2, 1);
+		AllDifferent allpuz = new AllDifferent(graph,1);
+		System.out.println("Original graph");
+		System.out.println(allpuz.getDiGraph().printEdges());
+		allpuz.findMaxMatching();
+		System.out.println("Different graph");
+		System.out.println(allpuz.getDiGraph().printEdges());
+		AllDifferent.setToOriginal(allpuz);
+		System.out.println("Original graph");
+		System.out.println(allpuz.getDiGraph().printEdges());
+		if(allpuz.isFeasibleTwo()) {
+			System.out.println("True");
+		}
+		else {
+			System.out.println("False");
+		}
+		*/
+
 	}
 	/**
 	 * Constructor accepts a Directed Graph that is bipartite as indicated
@@ -94,7 +110,7 @@ public class AllDifferent {
 		this.bipartiteseparator = bipartiteseparator;
 	}
 	/**
-	 * Heper method prints the edges currently in this graph
+	 * Helper method prints the edges currently in this graph
 	 * @return a string containing the edges on each line
 	 */
 	public String printGraph() {
@@ -120,10 +136,56 @@ public class AllDifferent {
 	 * represents that some element in the domain has selected an element in its range
 	 * It then goes through the remaining elements in the matching that haven't been selected
 	 * and improves them until there is no more matching to improve.
+	 * @return whether constraint is feasible or not
+	 */
+	public boolean isFeasible() {
+		//g = gStandard.getCopy();
+		//Reminder: element [0, size-1-x) in reversed corresponds to [x+1, size-1] vertex in graph
+		//A true in the domain represents that it was selected
+		boolean[] reversed = new boolean[g.numVertices() - 1 - bipartiteseparator];
+		for(int i = 0; i < reversed.length; i++) {
+			reversed[i] = false;
+		}
+		boolean changed = true; //flag indicates whether DiGraph g has changed
+		while(changed) { //if DiGraph g has changed in previous iteration of while loop
+			changed = false; //nothing has changed initially
+			for(int i = 0; i< reversed.length; i++) {//iterate through all vertices from [bipartiteseparator+1, size-1]
+				if(!reversed[i]) { //if current index hasn't been reversed					
+					if(improveMatching(i + bipartiteseparator + 1)) { //improve matching
+						reversed[i] = true;
+						changed = true; 
+					}
+				}
+			}
+		}
+		//go through reversed to make sure all edges are reversed
+		for(int i = 0; i < reversed.length; i++) {
+			if(!reversed[i]) {
+				return false; //max matching not found, so not feasible
+			}
+		}
+		return true; //all data points in reversed are true
+
+	}
+	public boolean isFeasibleTwo() {
+		for(int i = 0; i <= bipartiteseparator; i++) {
+			ArrayList<Integer> valueList = g.adj(i);
+			if(valueList.size() == 0) {
+				return false;
+			}
+		}
+		return true;
+	}
+	/**
+	 * Finds the maximum matching of an initial graph. Begins by calculating a first
+	 * matching and keeps track of which nodes have been reversed. A reversed node
+	 * represents that some element in the domain has selected an element in its range
+	 * It then goes through the remaining elements in the matching that haven't been selected
+	 * and improves them until there is no more matching to improve.
 	 */
 	public void findMaxMatching() {
 		//g = gStandard.getCopy();
-		//Reminder: element [0, size-1-x] in reversed corresponds to [x+1, size-1] vertex in graph
+		//Reminder: element [0, size-1-x) in reversed corresponds to [x+1, size-1] vertex in graph
 		//A true in the domain represents that it was selected
 		boolean[] reversed = new boolean[g.numVertices() - 1 - bipartiteseparator];
 		for(int i = 0; i < reversed.length; i++) {
@@ -151,7 +213,7 @@ public class AllDifferent {
 	 * in the reversed array. The value in reversed array persists and is used in 
 	 * findMaxMatching function. This function does not guarantee a maximum matching.
 	 * @param reversed an array indicating whether this vertex has an arrow pointing to it (i.e. it has been matched)
-	 * element [0, size-1-x] in reversed corresponds to [x+1, size-1] vertex in graph
+	 * element [0, size-1-x) in reversed corresponds to [x+1, size-1] vertex in graph
 	 * bipartiteseparator is represented as x
 	 */
 	private void firstMatching(boolean[] reversed) {
@@ -245,7 +307,7 @@ public class AllDifferent {
 	 * @return first adjacent edge to vertex v or -1 if there are no adjacent edges
 	 */
     private int firstadj(int v, final boolean[] selected, final int[][] graphedges) {
-		for(int i = 0; i < bipartiteseparator; i++) {//go through double array in row v
+		for(int i = 0; i <= bipartiteseparator; i++) {//go through double array in row v
 			if(!selected[i] && graphedges[v][i] == 1) {
 				//if double array has a 1 on that column and node has not been selected, return adjacent edge
 				return i;
@@ -307,7 +369,7 @@ public class AllDifferent {
 		        for(int j = 0; j < visited.length; j++) {
 		        		visited[j] = -1;
 		        }
-		        	int returnvalue = depthsearchMaxMatching(g, visited, i, 0, false); //even alternating paths from node i
+		        	int returnvalue = depthsearchMaxMatching(graphtranspose, visited, i, 0, false); //even alternating paths from node i
 		        	//proccess results from depthsearch
 		        if(returnvalue != -1){ //if a path was found
 	        		//delete edges returned from depthsearchMaxMatching method in edgestoprune
@@ -338,11 +400,11 @@ public class AllDifferent {
 	/**
 	 * to propagate constraint from one AllDifferent object to other constraints
 	 * removes edge v to w or edge from w to v. Even if the edge exists
-	 * in this maximum matching, another constraint has elimated this possibility,
+	 * in this maximum matching, another constraint has eliminated this possibility,
 	 * so we need to find a new maximum matching by calling the improveMatching
 	 * function after the existing edges is eliminated
-	 * @param v source vertex v
-	 * @param w sink vertex w
+	 * @param v source vertex v must be from domain
+	 * @param w sink vertex w must be from range
 	 * @return a boolean representing whether an edge was actually removed from the graph
 	 */
 	public boolean prunenumber(int v, int w) {
@@ -350,8 +412,28 @@ public class AllDifferent {
 		if(g.removeEdge(w, v)) { //if we remove a reversed version, improve the matching
 			if(!improveMatching(v)) { //improve matching on v (top value), not w
 				System.out.println("Error in prunenumber: edge " + w + " to " + v);
+				//prune number does not quite work, so leave this here for time being
+				//maybe just test for feasibility? to "assert"
+				//correct output
+				/*
+				setToOriginal(this);
+				this.findMaxMatching();
+				if(this.isFeasibleTwo()) {
+					return true;
+				}	
+				*/
 				return false;
+				
 			}
+			//test for feasibility here. if improve matching succeeded, it should be feasible maxmatching
+			/*
+			setToOriginal(this);
+			this.findMaxMatching();
+			*/
+			if(!this.isFeasibleTwo()) {
+					return false;
+				}
+			
 			return true;
 		}
 			
@@ -363,6 +445,78 @@ public class AllDifferent {
 			return true;
 		}
 
+	}
+	/**
+	 * adds an edge pointing from vertex v to vertex w
+	 * @param v source vertex must be from domain
+	 * @param w sink vertex  must be from range
+	 */
+	public void addnumber(int v, int w) {
+		//to do: if v has no edges pointing to it, make w point to it
+		//else, make v point to w to indicate that w is a new possibility for v.
+		if(g.getTranspose().adj(v).size() == 0) {
+			g.addEdge(w, v);
+		}
+		else {
+			g.addEdge(v, w);
+		}
+		
+	}
+	/**
+	 * Testing, helper method
+	 * Two AllDifferents are equivalent if their Digraphs represent
+	 * the same possibilities for each node in the domain. If they 
+	 * get different maxmatchings, they will still be equivalent.
+	 * @param other other AllDifferent to compare to
+	 * @return Is true if both AllDifferents have equivalent values in DiGraph
+	 */
+	public boolean isEquivalent(AllDifferent other) {
+		setToOriginal(this);
+		setToOriginal(other);
+		boolean result = this.isSame(other);
+		this.findMaxMatching(); //find max matchings again to revert back to original state
+		other.findMaxMatching();
+		return result;
+	}
+	/**
+	 * checks if current AllDifferent is same as other.
+	 * helper method used for testing and validation purposes only
+	 * @param other other AllDifferent to compare to
+	 * @return Is true if both AllDifferents have identical values in DiGraph
+	 */
+	public boolean isSame(AllDifferent other) {
+		final int[][] garray = g.getTwoDimArray();
+		final int[][] otherarray = other.getDiGraph().getTwoDimArray();
+		for(int i = 0; i < g.numVertices(); i++) {
+			for(int j = 0; j < g.numVertices(); j++) {
+				if(otherarray[i][j] != garray[i][j]) {//if values in array are different
+					return false;
+				}
+			}
+		}
+		return true; //values in array are identical
+	}
+	/**
+	 * sets the AllDifferent to a state before maxmatching is called, which means 
+	 * that all edges point from domain, [bipartiteseparater +1, size -1] to range,
+	 * [0, bipartiteseparater].
+	 * @param g indicates which AllDifferent
+	 */
+	private static void setToOriginal(AllDifferent g) {
+		DiGraph graph = g.getDiGraph();
+		for(int i = 0; i <= g.getBipartiteseparator(); i++) {//for all nodes in range
+			ArrayList<Integer> adjacents = graph.adj(i);//get nodes pointing from range to domain
+			for(int j: adjacents) {
+				graph.reverseEdge(i, j);//reverse edge pointing from range to domain
+			}
+		}
+	}
+	/**
+	 * 
+	 * @return an exact copy of AllDifferent, but in a different object
+	 */
+	public AllDifferent getCopy() {
+		return new AllDifferent(g.getCopy(), bipartiteseparator);
 	}
 }
 //Sudoku solver make a 3-d array of size 9x9x11 (11th for storing number of 1's in other columns

@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.Stack;
 
 public class SudokuSolver {
@@ -8,8 +9,14 @@ public class SudokuSolver {
 	final int[][] originalPuzzle; // a 2-d array of size 9x9 with original sudoku values or a -1 if empty square
 	int[][] solution;
 	//2-d array follows format originalPuzzle[row][column]
+	int[][] solutioncol;
+	//2-d array follows format originalPuzzle[row][column] using column AllDifferent
+	int[][] solutionbox;
+	//2-d array follows format originalPuzzle[row][column] using Box AllDifferent
 	DiGraph[] constraints;//Holds the bipartite digraph that represent contraints of each square
 	AllDifferent[] different; //the AllDifferent object built from constraints
+	int prunecount;//keep track of total number of nodes pruned
+	Stack<LinkedList<Integer>> nodesreversed = new Stack<LinkedList<Integer>>(); //keeps track of nodes reversed
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 		
@@ -60,7 +67,7 @@ public class SudokuSolver {
 		puz[2][1] = 8;
 		puz[2][2] = 9;
 		*/
-		SudokuSolver sud = new SudokuSolver(puz);
+		SudokuSolver sud = new SudokuSolver(puz1);
 		//sud.initialPossibilities();
 		//sud.buildAllDifferent(18);
 		//DiGraph thegraph = sud.constraints[18];
@@ -73,13 +80,29 @@ public class SudokuSolver {
 			}
 			System.out.println();
 		}
+		/*
+		System.out.println("Solution for Column AllDifferent");
+		for(int i = 0; i < 9; i++) {
+			for(int j = 0; j < 9; j++) {				
+				System.out.print(sud.solutioncol[i][j] + " ");
+			}
+			System.out.println();
+		}
+		*/
+		System.out.println("Solution for Box AllDifferent");
+		for(int i = 0; i < 9; i++) {
+			for(int j = 0; j < 9; j++) {				
+				System.out.print(sud.solutionbox[i][j] + " ");
+			}
+			System.out.println();
+		}
 		
 		/*
 		for(int i = 0; i < 2; i++) {
 			sud.different[i].getDiGraph().printEdges();
 		}
 		*/
-		
+
 	}
 	/**
 	 * The constructor creates the array of possibilities, which initially includes all
@@ -92,6 +115,7 @@ public class SudokuSolver {
 	 */
 	public SudokuSolver(final int[][] originalPuzzle) {
 		if(originalPuzzle.length == 9 && originalPuzzle[0].length == 9) {
+			prunecount = 0;
 			this.originalPuzzle = originalPuzzle;
 			possibilities = new int[9][9][10];
 			//Intialize array with all 1's (except in last column it would be a 9)
@@ -121,7 +145,147 @@ public class SudokuSolver {
 			}
 			
 			solve();
+			solve();
+			System.out.println(prunecount);
+			
 			processSolution();
+			
+			int[] valuereturned = processSolutionCol();
+			int calc[] = calculateSudokuSquare(valuereturned[0], valuereturned[1]);
+			while(valuereturned[0] != 18) {//indicates that there was a node that was unsolved.
+				//while puzzle is unsolved
+				
+				AllDifferent[] originaldifferent = new AllDifferent[27];
+				for(int i = 0; i < 27; i++) {//build AllDifferent class for all possible values from DiGraph
+					originaldifferent[i] = different[i].getCopy();
+				}
+				
+				int a = calc[0];
+				int b = calc[1];
+				int c = valuereturned[2];
+				//int a = 5;
+				//int b = 0;
+				//int c = 4;
+				int[] valueforSolveTwo = {a, b, c}; 
+				LinkedList<Integer> valuetopush = new LinkedList<Integer>();
+				valuetopush.add(a+9);
+				valuetopush.add(b);
+				valuetopush.add(c);
+				nodesreversed.push(valuetopush);
+				boolean feasible;
+				if(setSquareToValue(a, b, c)){
+				 feasible = solvetwo(valueforSolveTwo);
+				 System.out.println("Solvetwo needed");
+				}
+				else {
+					feasible = true;
+					System.out.println("Solvetwo not needed");
+				}
+				if(feasible) {//if not feasible, pop everything off stack.
+					System.out.println("Not Feasible");
+					
+					/*
+					for(int i = 0; i < 27; i++) {
+						if(!originaldifferent[i].isEquivalent(different[i])) {
+							System.out.println("False Different" + i);
+						}
+					}
+					*/
+					boolean repeat = true;
+					int counter = 0;
+					while(repeat) {
+						repeat = false;//only need to reverseEachAllDifferent once, unless repeat is true
+						//update alldifferent to indicate that values in res are not feasible
+						
+						int[] res= reverseEachAllDifferent();
+						//to do: works if i add this segment? something wrong with prunenumber
+						//something wrong with AllDifferent number 9.
+						//find out why a maxmatching is not found going into 
+						//last iteration before error.
+						/*
+						if(counter ==0) {
+							for(int i = 0; i < 27; i++) {
+								if(!originaldifferent[i].isEquivalent(different[i])) {
+									System.out.println("False Different" + i);
+								}
+							}
+						}
+						*/
+						//need to push this eliminated node on stack
+						//we are currently eliminating a possibility for current attempt
+						//the current attempt is on top of stack because we just called reverseEachAllDifferent
+						//thus, we need to remember it in order to backtrack if current attempt fails
+						LinkedList<Integer> push = new LinkedList<Integer>();
+						push.add(res[0]);
+						push.add(res[1]);
+						push.add(res[2]);
+						if(!nodesreversed.isEmpty()) {//if stack is not empty
+							nodesreversed.push(push);
+						}
+						if(!different[res[0]].prunenumber(res[1] + 9, res[2])) {//prune from alldifferent
+							//if prunenumber fails, then not feasible and need to reverseEachAllDifferent again
+							//^^^something wrong with this logic
+							System.out.println("Error at different[res[0]]");
+							repeat = true;
+						}
+						if(!different[res[1] + 9].prunenumber(res[0] + 9, res[2])) {//infeasible at end?
+							System.out.println("Error different[res[1] + 9]");
+							repeat = true;
+						}
+						int[] calcresult = calculateAllDifferent(res[0], res[1]);
+						if(!different[calcresult[0]].prunenumber(calcresult[1], res[2])) {
+							System.out.println("Error different[calcresult[0]]");
+							repeat = true;
+						}
+						counter++;
+					}
+				}
+				else {
+					System.out.println("Feasible");
+					
+				}
+				/*
+				//now, revert back to previous state and backtrack
+				int[] res= reverseEachAllDifferent();
+				if(res[0] == a) {
+					System.out.println("True res[0]");
+				}
+				if(res[1] == b) {
+					System.out.println("True res[1]");
+				}
+				if(res[2] == c) {
+					System.out.println("True res[2]");
+				}
+				for(int i = 0; i < 27; i++) {
+				if(originaldifferent[i].isEquivalent(different[i])) {
+					System.out.println("True Different" + i);
+				}
+				else {
+					System.out.println("False Different" + i);
+				}
+				}
+				for(LinkedList<Integer> i: nodesreversed) {
+					for(Integer j: i) {
+						System.out.print(j + " ");
+					}
+					System.out.println();
+				}
+				if(feasible) {
+					System.out.println("Not Feasible");
+				}
+				else {
+					System.out.println("Feasible");
+				}
+				*/
+				valuereturned = processSolutionCol();
+				calc = calculateSudokuSquare(valuereturned[0], valuereturned[1]);
+				
+			}
+			
+			System.out.println("Coordinates (" + calc[0] + ", " + calc[1] + ")" + valuereturned[2]);
+			System.out.println("Coordinates (" + valuereturned[0] + ", " + valuereturned[1] + ")" + valuereturned[2]);
+			
+			processSolutionBox();
 		}
 		else {
 			this.originalPuzzle = originalPuzzle;
@@ -153,7 +317,9 @@ public class SudokuSolver {
 			for(int sourcevertex = different[i].getBipartiteseparator() + 1; sourcevertex < edgestoprune.length; sourcevertex++) { //for all sourcevertices from [bipartiteseparator + 1, end]
 				for(int sinkvertex = 0; sinkvertex <= different[i].getBipartiteseparator(); sinkvertex++) { //for all sinkvertices from [0, bipartiteseparator]
 					if(edgestoprune[sourcevertex][sinkvertex] == 1) {	//if a vertex needs to be eliminated
+						prunecount++;//one more prune done
 						int[] result = calculateSudokuSquare(i, sourcevertex); //calculate exact square in sudoku (row, col) 0<= row(or col) <= 8
+
 						//remove from row AllDifferent, AllDifferent is represented by result[0] or row in sudoku
 						if(!different[result[0]].prunenumber(result[1] + 9, sinkvertex)) {//column + 9 brings the domain into [9,17], sinkvertex is [0,8] representing [1,9] in puzzle
 							//if prune failed
@@ -176,6 +342,7 @@ public class SudokuSolver {
 						*/
 						if(!onstack[result[0]] && result[0] != i) {//if this AllDifferent is not stack, push it on
 							stack.push(result[0]);
+							onstack[result[0]] = true;
 						}
 						//remove from column AllDifferent AllDifferent is represented by result[1] + 9 or column in sudoku plus 9
 						//AllDifferent index 9-17 are the columns
@@ -201,18 +368,22 @@ public class SudokuSolver {
 						*/
 						if(!onstack[result[1] + 9] && result[1] + 9 != i) {//if this AllDifferent is not stack, push it on
 							stack.push(result[1] + 9);
+							onstack[result[1] + 9] = true;
 						}
 						//calculate which box and which square (labeled from 0 to 8) in sudoku
+						/*
 						int boxX = result[0] /3; //integer division calculates box's x-coordinate
 						int boxY = result[1] /3;//integer division calculates box's y-coordinate
 						int squarex = result[0] % 3; //calculate square's x coordinate and y-coordinate [0,2]
 						int squareY = result[1] % 3;
 						int boxnum = boxX * 3 + boxY;//calculate boxnum with row and column values (3 boxes per row)
 						int squarenum = squarex * 3 + squareY;//calculate squarenum with row and column values (3 boxes per row)
-						if(!different[boxnum + 18].prunenumber(squarenum + 9, sinkvertex)) { //squarenum + 9 brings the brings the domain into [9,17], sinkvertex is [0,8] representing [1,9] in puzzle
-							int firstparm = squarenum + 9;
+						*/
+						int[] calcresult = calculateAllDifferent(result[0], result[1]);
+						if(!different[calcresult[0]].prunenumber(calcresult[1], sinkvertex)) { 
+							int firstparm = calcresult[1];
 							int secparm = sinkvertex;
-							int actualindex = boxnum + 18;//Forgot to add 18 for different is cause of bug
+							int actualindex = calcresult[0];//Forgot to add 18 for different is cause of bug
 							System.out.println("Prune fails at i: " + i + " for box AllDifferent removal at square " 
 							+ result[0]+ ", " + result[1] + " of " + firstparm + " -> " + secparm + " with source vertex " 
 									+ sourcevertex);
@@ -228,8 +399,9 @@ public class SudokuSolver {
 									+ sourcevertex);
 						}
 						*/
-						if(!onstack[boxnum] && boxnum + 18 != i) {//if this AllDifferent is not stack, push it on
-							stack.push(boxnum);
+						if(!onstack[calcresult[0]] && calcresult[0] + 18 != i) {//if this AllDifferent is not stack, push it on
+							stack.push(calcresult[0]);
+							onstack[calcresult[0]] = true;
 						}
 					}				
 				}
@@ -241,21 +413,299 @@ public class SudokuSolver {
 		}
 
 	}
+/**
+ * nodesreversed keeps track of nodes to reverse in case solvetwo leads to an infeasible 
+ * max matching. It pushes an arraylist containing {x, y, value} onto stack each time a
+ * node is pruned using prunenumber. x, y, and value are similar to the descriptions for testnodes param below
+ * Before solvetwo is called, a special, unique value, {x+9, y, value} is pushed to indicate that we are testing
+ * a value for a square. This value represents the value we "tested". Adding 9 to x makes this unique compare to other
+ * values pushed on stack.
+ * If solve two leads to an infeasible value, everything is popped and reversed
+ * until it reaches this special value. 
+ * @param testnodes integer array of size three with values{x, y, value}
+ * x represents the row in sudoku puzzle. y is the column.
+ * value is from [0,8] and represents the guessed value in particular square
+ * at coordinates (x,y)
+ * @return true if not feasible. else, false because we need another guess.
+ */
+	private boolean solvetwo(int[] testnodes) {
+		Stack<Integer> stack = new Stack<>();//stack represents the work that still needs to be done
+		boolean[] onstack = new boolean[27];//array of booleans to keep track of whether it's on stack -> set to false now
+		//push 3 stacks associated with coordinates at testnodes
+		for(int i = 0; i < onstack.length; i++) { //all AllDifferents are on the stack
+			onstack[i] = false;
+		}
+		stack.push(testnodes[0]);
+		onstack[testnodes[0]] = true;
+		stack.push(testnodes[1]+9);
+		onstack[testnodes[1]+9] = true;//should be testnodes[1]+9
+		int[] calcresult = calculateAllDifferent(testnodes[0], testnodes[1]);
+		stack.push(calcresult[0]);
+		onstack[calcresult[0]] = true;
+		//I have to add alldifferent edge for edges in testnodes to
+		//indicate that edge in square (x,y) must take on value as only possibility
+
+		while(!stack.isEmpty()) {//iterate through this while stack is not empty. to do: feasible, but needs more guesses
+			//pop from stack
+			int i = stack.pop();
+			//System.out.println(i);
+			//array of booleans to keep track of whether it's on stack -> set to false now
+			onstack[i] = false;
+			//if needs max matching, call it
+			if (!different[i].isFeasibleTwo()) {//indicate that it is not feasible
+				return true;
+			}
+			//call prune: returns edges
+			int[][] edgestoprune = different[i].prune(); //edgestoprune is a 18 x 18 two dim-array
+			//iterate through each valid edge from domain to range
+			for(int sourcevertex = different[i].getBipartiteseparator() + 1; sourcevertex < edgestoprune.length; sourcevertex++) { //for all sourcevertices from [bipartiteseparator + 1, end]
+				for(int sinkvertex = 0; sinkvertex <= different[i].getBipartiteseparator(); sinkvertex++) { //for all sinkvertices from [0, bipartiteseparator]
+					if(edgestoprune[sourcevertex][sinkvertex] == 1) {	//if a vertex needs to be eliminated
+						prunecount++;//one more prune done
+						int[] result = calculateSudokuSquare(i, sourcevertex); //calculate exact square in sudoku (row, col) 0<= row(or col) <= 8
+						//push values onto nodereversed stack
+						LinkedList<Integer> valuetopush = new LinkedList<Integer>();
+						valuetopush.add(result[0]);
+						valuetopush.add(result[1]);
+						valuetopush.add(sinkvertex);
+						nodesreversed.push(valuetopush);
+						//remove from row AllDifferent, AllDifferent is represented by result[0] or row in sudoku
+						boolean differentrow = false; 
+						boolean differentcol = false; //indicates false if prune succeeded
+						boolean differentbox = false; // indicates true if prune failed
+						if(!different[result[0]].prunenumber(result[1] + 9, sinkvertex)) {//column + 9 brings the domain into [9,17], sinkvertex is [0,8] representing [1,9] in puzzle
+							//if prune failed
+							differentrow = true;
+						}
+
+						if(!onstack[result[0]] && result[0] != i) {//if this AllDifferent is not stack, push it on
+							stack.push(result[0]);
+							onstack[result[0]] = true;
+						}
+						//remove from column AllDifferent AllDifferent is represented by result[1] + 9 or column in sudoku plus 9
+						
+						//AllDifferent index 9-17 are the columns
+						if(result[1] + 9 == 10 && result[0] + 9 == 9 && sinkvertex == 4) {
+							System.out.println("Debug");
+						}
+						if(!different[result[1] + 9].prunenumber(result[0] + 9, sinkvertex)) {//row + 9 brings the domain into [9,17], sinkvertex is [0,8] representing [1,9] in puzzle
+							
+							differentcol = true;
+							
+						}
+
+						if(!onstack[result[1] + 9] && result[1] + 9 != i) {//if this AllDifferent is not stack, push it on
+							stack.push(result[1] + 9);
+							onstack[result[1] + 9] = true;
+						}
+						//calculate which box and which square (labeled from 0 to 8) in sudoku
+						int[] calcAllDiff = calculateAllDifferent(result[0], result[1]);
+						if(!different[calcAllDiff[0]].prunenumber(calcAllDiff[1], sinkvertex)) { 
+							differentbox = true;
+						}
+						if(!onstack[calcAllDiff[0]] && calcAllDiff[0] + 18 != i) {//if this AllDifferent is not stack, push it on
+							stack.push(calcAllDiff[0]);
+							onstack[calcAllDiff[0]] = true;
+						}
+						if(differentrow || differentcol || differentbox) {//if one of prunes failed
+							/*means that they are infeasible
+							wait until end of loop to return, so that prunenumber is executed
+							on all three AllDifferents. This allows reverseEachAllDifferent to 
+							backtrack properly*/
+							return true;
+						}
+					}				
+				}
+			}
+			
+
+		}
+		return false; //stack emptied, which means prunes are done. Another guess may be needed
+
+	}
+	/**
+	 * Values popped from stack indicate what values are pruned and where they are located in the puzzle.
+	 * 3 AllDifferents need to have those edges added back in.
+	 * @return integer array containing, {x, y, value}, which represents value tested
+	 * at coordinates (x, y)
+	 */
+	private int[] reverseEachAllDifferent() {
+		//to do: make sure a maxmatching is found when nodes are added back
+		LinkedList<Integer> popval = nodesreversed.pop();
+		while(popval.get(0) <= 8) {//while we haven't hit special value
+			different[popval.get(0)].addnumber(popval.get(1) + 9, popval.get(2));
+			different[popval.get(1) + 9].addnumber(popval.get(0) + 9, popval.get(2));
+			int[] calcAllDiff = calculateAllDifferent(popval.get(0), popval.get(1));
+			different[calcAllDiff[0]].addnumber(calcAllDiff[1], popval.get(2));
+			popval = nodesreversed.pop();
+		}
+		int[] returnvalue = {popval.get(0)-9, popval.get(1), popval.get(2)};
+		return returnvalue;
+	}
+	/**
+	 * Updates row, column, and box AllDifferents to make value as only possible
+	 * value that square at (row, col) can take on. Push these values onto nodesreversed
+	 * stack
+	 * @param row which row the square belongs to. [0,8]
+	 * @param col which column the square belongs to [0,8]
+	 * @param value the value of square. [0,8]
+	 * @return false if this square is not feasible.
+	 */
+	private boolean setSquareToValue(int row, int col, int value) {
+		//only need to push values onto nodesreversed for row AllDifferents
+		//other AllDifferents eliminate the same possibilities
+		for(Integer i:different[row].getDiGraph().adj(col+9)) {//for all nodes adjacent to col+9 in row alldifferent
+			if(i != value) {
+				different[row].prunenumber(col+9, i); //will not improvematching
+				LinkedList<Integer> valuetopush = new LinkedList<Integer>();
+				valuetopush.add(row);
+				valuetopush.add(col);
+				valuetopush.add(i);
+				nodesreversed.push(valuetopush);
+			}
+		}
+		for(Integer i:different[row].getDiGraph().getTranspose().adj(col+9)) {//find node pointing to col+9
+			if(i != value) {//will not need to improvematching if i is value because i is already pointing to col+9
+				LinkedList<Integer> valuetopush = new LinkedList<Integer>(); //only need t
+				valuetopush.add(row);
+				valuetopush.add(col);
+				valuetopush.add(i);
+				nodesreversed.push(valuetopush);
+				if(!different[row].prunenumber(col+9, i)) {//eliminating this possible value leads to infeasibility
+					return false; 
+				} 
+			}
+		}
+		for(Integer i:different[col+9].getDiGraph().adj(row+9)) {//for all nodes adjacent to row+9 in col alldifferent
+			if(i != value) {
+				different[col+9].prunenumber(row+9, i); //will not improvematching
+			}
+		}
+		for(Integer i:different[col+9].getDiGraph().getTranspose().adj(row+9)) {//find node pointing to row+9
+			if(i != value) {//will not need to improvematching if i is not value because i is already pointing to row+9
+				if(!different[col+9].prunenumber(row+9, i)) {
+					return false;
+				}
+			}
+		}
+		int[] calc = calculateAllDifferent(row, col);
+		for(Integer i:different[calc[0]].getDiGraph().adj(calc[1])) {
+			if(i != value) {
+				different[calc[0]].prunenumber(calc[1], i); //will not improvematching
+			}
+		}
+		for(Integer i:different[calc[0]].getDiGraph().getTranspose().adj(calc[1])) {//find node pointing to col+9
+			if(i != value) {//will not need to improvematching if i is not value because i is already pointing to col+9
+				if(!different[calc[0]].prunenumber(calc[1], i)) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+	
 	/**
 	 * method processes solution from AllDifferent row column
 	 */
 	private void processSolution() {
 		solution = new int[9][9];
+		System.out.println("Solution Row Called:");
 		for(int i = 0; i < 9; i++) {//iterate through each row
+			final DiGraph g = different[i].getDiGraph();
+			//final DiGraph graphtranpose = g.getTranspose();
+			for(int j = 0; j <= different[i].getBipartiteseparator(); j++) {//for each node in second half of array
+				ArrayList<Integer> valueList = g.adj(j);
+				int value = -1;
+				if(valueList.size() == 1) {//if there is a node here
+					//System.out.println("No value here " + i + " " + j);
+					value = valueList.get(0);//get value from domain that points to j
+				}
+				int result[] = calculateSudokuSquare(i, value); //gets coordinates
+				if(g.adj(value).size()!=0) {//check that value only has one possible value or adjacent
+					//Print out possible values of each square with more than one possible value
+					System.out.print("("+result[0]+", "+result[1]+ ") has these possible values: ");
+					for(Integer k: g.adj(value)) {//get adjacent nodes to value, which are other possible values it can take on
+						System.out.print(k+1);
+						System.out.print(", ");
+					}
+					System.out.print(j+1); //print current node in range (2nd half of array) we are examining
+					System.out.println();
+					
+					solution[result[0]][result[1]] = 0;//if not, don't assign square
+				}
+				else {// square is occupied with one possible value
+					solution[result[0]][result[1]] = j+1;
+				}
+				//solution[i][j - (different[i].getBipartiteseparator() + 1)] = value + 1; //input value at (row, col)
+				//add 1 to value to get [0,8] to [1,9]
+			}
+		}
+	}
+	/**
+	 * Determines if the puzzle is solved. If it is solved, return an integer array with values [18, 18, 18]. 
+	 * Else return an integer array to indicate which feasible value to assign to a square, and of course also
+	 * include which AllDifferent it came from.
+	 * @return an integer array of size 3 [alldifferent, value, j] in which alldifferent represents which
+	 * alldifferent it came from. value is a value from domain, which is [bipartiteseparator+1, size -1]
+	 * j is a value from range, which is [0, bipartiteseparator]
+	 */
+	private int[] processSolutionCol() {
+		//solutioncol = new int[9][9];
+		//System.out.println("Solution Col Called:");
+		int returnarray[] = {18, 18, 18};
+		for(int i = 9; i <= 17; i++) {//iterate through each Col
 			final DiGraph g = different[i].getDiGraph();
 			for(int j = 0; j <= different[i].getBipartiteseparator(); j++) {//for each node in second half of array
 				ArrayList<Integer> valueList = g.adj(j);
 				int value = -1;
-				if(valueList.size() != 0) {
+				if(valueList.size() == 1) {
+					value = valueList.get(0);
+				}
+				int result[] = calculateSudokuSquare(i, value);
+				if(g.adj(value).size()!=0) {//check that value only has one possible value or adjacent
+					//return false here to break out of function
+					//return j and value to leave function. will assign value to j  to assign feasible value to square
+
+					returnarray[0] = i;
+					returnarray[1] = value;
+					returnarray[2] = j;
+					return returnarray;
+					
+				}
+
+			}
+		}
+		return returnarray;
+	}
+	private void processSolutionBox() {//check tomorrow
+		solutionbox = new int[9][9];
+		System.out.println("Solution Box Called:");
+		for(int i = 18; i <= 26; i++) {//iterate through each Col
+			final DiGraph g = different[i].getDiGraph();
+			//final DiGraph graphtranpose = g.getTranspose();
+			for(int j = 0; j <= different[i].getBipartiteseparator(); j++) {//for each node in second half of array
+				ArrayList<Integer> valueList = g.adj(j);
+				int value = -1;
+				if(valueList.size() == 1) {
 					//System.out.println("No value here " + i + " " + j);
 					value = valueList.get(0);
 				}
-				solution[i][value - (different[i].getBipartiteseparator() + 1)] = j+1;
+				int result[] = calculateSudokuSquare(i, value);
+				if(g.adj(value).size()!=0) {//check that value only has one possible value or adjacent
+					//System.out.println("error");
+					System.out.print("("+result[0]+", "+result[1]+ ") has these possible values: ");
+					for(Integer k: g.adj(value)) {
+						System.out.print(k+1);
+						System.out.print(", ");
+					}
+					System.out.print(j+1);
+					System.out.println();
+					
+					solutionbox[result[0]][result[1]] = 0;//if not, don't assign square
+				}
+				else {
+					solutionbox[result[0]][result[1]] = j+1;
+				}
 				//solution[i][j - (different[i].getBipartiteseparator() + 1)] = value + 1; //input value at (row, col)
 				//add 1 to value to get [0,8] to [1,9]
 			}
@@ -302,6 +752,25 @@ public class SudokuSolver {
 			System.out.println("error in calculateSudokuSquare");
 		}
 		return result;
+	}
+	/**
+	 * inverse of calculateSudokuSquare. Takes x and y coordinates. Then, 
+	 * calculates alldifferent and source vertex. It assumes that the allDifferentValue
+	 * of the output must be [18, 26]. This assumes it's a box.
+	 * @param x row. value from 0 to 8
+	 * @param y column. value from 0 to 8.
+	 * @return integer array of size two containing {allDifferentValue, sourcevertex}
+	 * allDifferentValue is the Alldifferent value, assuming this is a box
+	 */
+	private int[] calculateAllDifferent(int x, int y) {
+		int boxX = x /3; //integer division calculates box's x-coordinate
+		int boxY = y /3;//integer division calculates box's y-coordinate
+		int squarex = x % 3; //calculate square's x coordinate and y-coordinate [0,2]
+		int squareY = y % 3;
+		int boxnum = boxX * 3 + boxY;//calculate boxnum with row and column values (3 boxes per row)
+		int squarenum = squarex * 3 + squareY;//calculate squarenum with row and column values (3 boxes per row)
+		int[] returnvalue = {boxnum+18, squarenum+9};
+		return returnvalue;
 	}
 	/*
 	 * Sets up all the intial possibilities in 3-d array possibilities
@@ -464,3 +933,22 @@ public class SudokuSolver {
 	}
 
 }
+//modify process solution to only print squares that only have on possibility, check with all three alldifferents
+//if one of them has one possibility, print it out. 
+//if one of them has one possibility, shouldn't all three also only have one?
+//Continued plan: Detect if puzzle is unsolved.
+//assign a feasible value to a square. pass this value into solve method
+//update the three AllDifferent's affected and push them on stack in solve method.
+//these three AllDifferents should lead to prunes, and others will be pushed on
+//go through pruning
+//in solve method, keep track of nodes reversed in stack that is data entire of SudokuSolver class.
+//Also keep track of which AllDifferent that these nodes belong to.
+//pass special parameter to solve, to note that stack is activated for prunes
+//first push tested feasible value of square on stack. mark this as special value
+//push each reversed node on stack.
+//
+//if not feasible, pop nodes reversed in stack, and reverse each AllDifferent.
+//use helper function to reverse each AllDifferent
+//when you reach the special value, update the 3 AllDifferent's to reflect that this value is impossible (use helper func)
+//prunenumber is used to remove a possibility.
+//stop and eliminate this possibility
