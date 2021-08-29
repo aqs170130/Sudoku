@@ -265,6 +265,36 @@ public class AllDifferent {
         return -1; //returns false if it is a leaf node that does not meet criterion (currentdepth % 2 == 1)
         //returns false if all neighbors (in for block) are visited and have not returned true
     }
+	/**
+	 * Exact same as depthsearchMaxMatching, but operates on transpose of g
+	 * @param g indicates graph to be analyzed
+	 * @param visited indicates -1 if not visited or an integer that represents the parent node
+	 * @param searchvertex indicates which vertex we are currently at 
+	 * @param oddpath indicates whether we are searching for an oddpath (true) or an even path (false)
+	 * @return if no path found, return -1, else return end vertex of path
+	 */
+    private int depthsearchMaxMatchingTranspose(DiGraph g, int[] visited, int searchvertex, int currentdepth, boolean oddpath){
+    		int modulus = 0; //convert oddpath into a 0 or 1 to do modulus operations
+    		if(oddpath) {modulus = 1;} 
+        ArrayList<Integer> neighbors = g.adjTranspose(searchvertex); 
+        //this if block only runs if there are no neighbors to current node, meaning that it is a leaf
+        if(neighbors.size() == 0 && currentdepth % 2 == modulus) {
+    		//return true and stop searching neighbors if legitimate path is found
+			return searchvertex;
+        }
+        for(Integer i:neighbors){ //for every neighbor, assuming there is at least one neighbor
+            if(visited[i] == -1){ //if current neighbor hasn't been visited
+            		visited[i] = searchvertex; //set visited array value of neighbor to searchvertex
+            		int returnvalue = depthsearchMaxMatching(g, visited, i, currentdepth + 1, oddpath);
+                if(returnvalue != -1) {
+                	//if this path returned true then stop searching neighbors
+                		return returnvalue;
+                }
+            }
+        }
+        return -1; //returns false if it is a leaf node that does not meet criterion (currentdepth % 2 == 1)
+        //returns false if all neighbors (in for block) are visited and have not returned true
+    }
     /**
      * improves matching on DiGraph g. If no improvement is found,
      * then it is guaranteed that there are no improvements
@@ -360,7 +390,6 @@ public class AllDifferent {
 		}
 
 		//Find alternating paths step on transpose of graph
-		DiGraph graphtranspose = g.getTranspose();
 		for(int i = 0; i <= bipartiteseparator; i++) {//Examines all nodes in the range that have no adjacent verticies (meaning it hasn't been selected)
 			ArrayList<Integer> adjacents = g.adj(i);
 			if(adjacents.size() == 0) {//if max matching vertex from [0,x] has not selected node from [x+1, size-1]
@@ -369,7 +398,7 @@ public class AllDifferent {
 		        for(int j = 0; j < visited.length; j++) {
 		        		visited[j] = -1;
 		        }
-		        	int returnvalue = depthsearchMaxMatching(graphtranspose, visited, i, 0, false); //even alternating paths from node i
+		        	int returnvalue = depthsearchMaxMatchingTranspose(g, visited, i, 0, false); //even alternating paths from node i
 		        	//proccess results from depthsearch
 		        if(returnvalue != -1){ //if a path was found
 	        		//delete edges returned from depthsearchMaxMatching method in edgestoprune
@@ -454,7 +483,7 @@ public class AllDifferent {
 	public void addnumber(int v, int w) {
 		//to do: if v has no edges pointing to it, make w point to it
 		//else, make v point to w to indicate that w is a new possibility for v.
-		if(g.getTranspose().adj(v).size() == 0) {
+		if(g.adjTranspose(v).size() == 0) {
 			g.addEdge(w, v);
 		}
 		else {

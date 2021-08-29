@@ -50,6 +50,28 @@ public class SudokuSolver {
 				{-1,-1,-1,-1,6,-1,5,2,3},
 				{1,-1,2,-1,-1,9,-1,8,-1}
 		};
+		int[][] puz3 = {
+				{-1,-1,-1,1,-1,2,9,-1,-1},
+				{-1,-1,-1,-1,9,-1,3,-1,1},
+				{-1,-1,-1,-1,-1,8,-1,-1,6},
+				{-1,-1,-1,-1,3,-1,-1,-1,-1},
+				{-1,6,2,-1,-1,-1,-1,-1,-1},
+				{-1,7,9,-1,1,6,-1,-1,-1},
+				{-1,-1,8,-1,6,-1,-1,-1,7},
+				{-1,-1,4,-1,-1,-1,1,9,-1},
+				{-1,-1,-1,-1,-1,4,-1,2,-1}
+		};
+		int[][] puz4 = {
+				{-1,-1,-1,-1,-1,-1,-1,-1,-1},
+				{-1,-1,-1,-1,-1,-1,-1,-1,-1},
+				{-1,-1,-1,-1,-1,-1,-1,-1,-1},
+				{-1,-1,-1,-1,-1,-1,-1,-1,-1},
+				{-1,-1,-1,-1,-1,-1,-1,-1,-1},
+				{-1,-1,-1,-1,-1,-1,-1,-1,-1},
+				{-1,-1,-1,-1,-1,-1,-1,-1,-1},
+				{-1,-1,-1,-1,-1,-1,-1,-1,-1},
+				{-1,-1,-1,-1,-1,-1,-1,-1,-1}
+		};
 		/*		
 		int[][] puz = new int[9][9];
 		for(int i = 0; i < puz.length; i++) {
@@ -564,7 +586,7 @@ public class SudokuSolver {
 				nodesreversed.push(valuetopush);
 			}
 		}
-		for(Integer i:different[row].getDiGraph().getTranspose().adj(col+9)) {//find node pointing to col+9
+		for(Integer i:different[row].getDiGraph().adjTranspose(col+9)) {//find node pointing to col+9
 			if(i != value) {//will not need to improvematching if i is value because i is already pointing to col+9
 				LinkedList<Integer> valuetopush = new LinkedList<Integer>(); //only need t
 				valuetopush.add(row);
@@ -581,7 +603,7 @@ public class SudokuSolver {
 				different[col+9].prunenumber(row+9, i); //will not improvematching
 			}
 		}
-		for(Integer i:different[col+9].getDiGraph().getTranspose().adj(row+9)) {//find node pointing to row+9
+		for(Integer i:different[col+9].getDiGraph().adjTranspose(row+9)) {//find node pointing to row+9
 			if(i != value) {//will not need to improvematching if i is not value because i is already pointing to row+9
 				if(!different[col+9].prunenumber(row+9, i)) {
 					return false;
@@ -594,7 +616,7 @@ public class SudokuSolver {
 				different[calc[0]].prunenumber(calc[1], i); //will not improvematching
 			}
 		}
-		for(Integer i:different[calc[0]].getDiGraph().getTranspose().adj(calc[1])) {//find node pointing to col+9
+		for(Integer i:different[calc[0]].getDiGraph().adjTranspose(calc[1])) {//find node pointing to col+9
 			if(i != value) {//will not need to improvematching if i is not value because i is already pointing to col+9
 				if(!different[calc[0]].prunenumber(calc[1], i)) {
 					return false;

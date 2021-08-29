@@ -9,7 +9,6 @@ import java.util.LinkedList;
 public class StronglyConnectedComponents 
 { 
 	private final DiGraph g;
-	private DiGraph gTranspose;
 	private ArrayList<LinkedList<Integer>> answer; // Each entry in arraylist contains a linked list of nodes
 	public static void main(String[] args) throws FileNotFoundException{
 		DiGraph graph = new DiGraph(18);
@@ -54,7 +53,6 @@ public class StronglyConnectedComponents
 	}
 	public StronglyConnectedComponents(final DiGraph g) {
 		this.g = g;
-		gTranspose = g.getTranspose();
 		answer = new ArrayList<LinkedList<Integer>>();
 		printSCCs();
 	}
@@ -69,7 +67,7 @@ public class StronglyConnectedComponents
         answer.get(answer.size() - 1).add(v); // add v to last LinkedList in answer ArrayList
 
         // Recur for all the vertices adjacent to this vertex 
-        Iterable<Integer> iterator = gTranspose.adj(v); 
+        Iterable<Integer> iterator = g.adjTranspose(v); 
         for(Integer i: iterator) {
         		if(!visited[i]) {
         			DFSUtil(i, visited);

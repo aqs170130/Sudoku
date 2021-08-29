@@ -32,10 +32,11 @@ public class DiGraph {
         graph.addEdge(0, 3);
         graph.addEdge(3, 4);
         graph.reverseEdge(3, 4);
-        DiGraph graphtranspose = graph.getCopy();
+        DiGraph graphtranspose = graph.getTranspose();
         System.out.println(graph.printEdges());
         System.out.println(graphtranspose.printEdges());
-        
+        System.out.println(graph.adjTranspose(3));
+        System.out.println(graph.adj(3));
         StronglyConnectedComponents scc = new StronglyConnectedComponents(graph);
         ArrayList<LinkedList<Integer>> list = scc.getSCCs();
         for(LinkedList<Integer> i: list) {
@@ -95,6 +96,20 @@ public class DiGraph {
     		ArrayList<Integer> array = new ArrayList<>();
     		for(int i = 0; i < this.v; i++) {//go through double array in row v
     			if(fullgraph[v][i] == 1) { //if double array has a 1 on that column, then there exists and adjacent edge
+    				array.add(i);
+    			}
+    		}
+        return array;
+    }
+    /**
+     * Pretends this is transpose of graph
+     * @param v vertex v
+     * @return returns all adjacent vertices to v in Iterable<Integer>
+     */
+    public ArrayList<Integer> adjTranspose(int v){
+    		ArrayList<Integer> array = new ArrayList<>();
+    		for(int i = 0; i < this.v; i++) {//go through double array in col v
+    			if(fullgraph[i][v] == 1) { //if double array has a 1 on that row, then there exists and adjacent edge
     				array.add(i);
     			}
     		}
